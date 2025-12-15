@@ -13,17 +13,17 @@ private const val green = "\u001B[92m"
 private const val cyan = "\u001b[36m"
 private const val reset = "\u001B[0m"
 
-fun <T : Number> withTimer(msg: String, block: () -> T) {
+suspend fun <T : Number> withTimer(msg: String, block: suspend () -> T) {
     val (value, time) = measureTimedValue { block() }
 
     val timeStr = "${time.inWholeMilliseconds}ms".cyan()
     println("$msg\t$timeStr\t$value")
 }
 
-fun <T : Number> checkWithTimer(
+suspend fun <T : Number> checkWithTimer(
     msg: String,
     expected: T,
-    block: () -> T,
+    block: suspend () -> T,
 ) {
     val (value, time) = measureTimedValue { block() }
 
