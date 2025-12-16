@@ -7,7 +7,7 @@ val Day10 = AdventOfCode(2025, 10) {
     data class Machine(
         val indicators: Int,
         val buttons: List<List<Int>>,
-        val joltage: List<Int>,
+        val joltageRequirements: List<Int>,
     )
 
     fun String.parseMachine(): Machine {
@@ -25,12 +25,15 @@ val Day10 = AdventOfCode(2025, 10) {
         return Machine(indicators, buttons, joltage)
     }
 
+    fun List<Int>.toBitMask(): Int = sumOf { 1 shl it }
+
+
     part1 {
 
         input.lines.sumOf { line ->
             val machine = line.parseMachine()
 
-            val buttons = machine.buttons.map { button -> button.sumOf { 1 shl it } }
+            val buttons = machine.buttons.map { button -> button.toBitMask() }
 
             generateSequence(setOf(0)) { lightStates ->
                 lightStates
@@ -44,34 +47,63 @@ val Day10 = AdventOfCode(2025, 10) {
         }
     }
 
-    xpart2 {
+    // https://www.reddit.com/r/adventofcode/comments/1pk87hl/2025_day_10_part_2_bifurcate_your_way_to_victory/
+    part2 {
+        fun Int.pressButtons(buttons: List<Int>): Int {
+            return buttons.fold(this) { acc, button -> acc xor button }
+        }
+
+        fun <T> getAllCombinations(buttons: List<T>) =
+            buttons.fold(listOf(emptyList<T>())) { combinations, button ->
+                combinations.flatMap { previousPresses ->
+                    listOf(previousPresses, previousPresses.plusElement(button))
+                }
+            }
+
+
+        fun Machine.minPresses(): Int {
+            val cache = mutableMapOf<List<Int>, Int>()
+
+            fun minPresses(joltageRequirements: List<Int>): Int = cache.getOrPut(joltageRequirements) {
+
+                if (joltageRequirements.all { it == 0 }) return 0
+                if (joltageRequirements.any { it < 0 })
+                    return 100000
+
+                val desiredLights = joltageRequirements.foldRight(0) { req, acc ->
+                    acc * 2 + when (req % 2 == 1) {
+                        true -> 1
+                        false -> 0
+                    }
+                }
+
+
+                val allCombinations = getAllCombinations(buttons)
+
+                return@getOrPut allCombinations.filter { buttons ->
+                    val bitmasks = buttons.map { it.toBitMask() }
+                    0.pressButtons(bitmasks) == desiredLights
+                }.minOfOrNull { buttons ->
+
+                    val counterStates = buttons.flatMap { it }.groupBy { it }.mapValues { it.value.count() }
+
+                    val remainingJolatages =
+                        joltageRequirements.mapIndexed { index, value -> (value - (counterStates[index] ?: 0)) / 2 }
+
+                    buttons.size + 2 * minPresses(remainingJolatages)
+                } ?: 100000
+            }
+
+            return minPresses(joltageRequirements)
+        }
+
+
         input.lines
             .sumOf { line ->
-
-                val machine = line.parseMachine()
-
-                val start = List(machine.joltage.size) { 0 }
-
-                generateSequence(listOf(start) to false) { (states, _) ->
-                    val nextStates = states
-                        .flatMap { counters ->
-                            machine.buttons.map { button ->
-                                counters.mapIndexed { index, counter ->
-                                    if (index in button) {
-                                        counter + 1
-                                    } else {
-                                        counter
-                                    }
-                                }
-                            }
-                        }.distinct()
-                        .filter {
-                            (machine.joltage zip it).all { (joltageReq, count) -> count <= joltageReq }
-                        }
-                    nextStates to nextStates.any { (machine.joltage zip it).all { (joltageReq, count) -> count == joltageReq } }
-                }.takeWhile { !it.second }.count()
+                line.parseMachine().minPresses()
             }
     }
 
-    solutions(532, null)
+    solutions(532, 18387)
 }
+
