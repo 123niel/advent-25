@@ -21,7 +21,7 @@ val Day02 = AdventOfCode(2025, 2) {
         fun LongRange.invalidIds(): List<Long> = filter {
             val str = it.toString()
             for (i in 1..str.length / 2) {
-                val regex = Regex("(${str.substring(0, i)})+")
+                val regex = Regex("(${str.take(i)})+")
                 if (str.matches(regex)) {
                     return@filter true
                 }

@@ -27,7 +27,6 @@ val Day10 = AdventOfCode(2025, 10) {
 
     fun List<Int>.toBitMask(): Int = sumOf { 1 shl it }
 
-
     part1 {
 
         input.lines.sumOf { line ->
@@ -49,26 +48,22 @@ val Day10 = AdventOfCode(2025, 10) {
 
     // https://www.reddit.com/r/adventofcode/comments/1pk87hl/2025_day_10_part_2_bifurcate_your_way_to_victory/
     part2 {
-        fun Int.pressButtons(buttons: List<Int>): Int {
-            return buttons.fold(this) { acc, button -> acc xor button }
-        }
+        fun Int.pressButtons(buttons: List<Int>): Int = buttons.fold(this) { acc, button -> acc xor button }
 
-        fun <T> getAllCombinations(buttons: List<T>) =
-            buttons.fold(listOf(emptyList<T>())) { combinations, button ->
-                combinations.flatMap { previousPresses ->
-                    listOf(previousPresses, previousPresses.plusElement(button))
-                }
+        fun <T> getAllCombinations(buttons: List<T>) = buttons.fold(listOf(emptyList<T>())) { combinations, button ->
+            combinations.flatMap { previousPresses ->
+                listOf(previousPresses, previousPresses.plusElement(button))
             }
-
+        }
 
         fun Machine.minPresses(): Int {
             val cache = mutableMapOf<List<Int>, Int>()
 
             fun minPresses(joltageRequirements: List<Int>): Int = cache.getOrPut(joltageRequirements) {
-
                 if (joltageRequirements.all { it == 0 }) return 0
-                if (joltageRequirements.any { it < 0 })
+                if (joltageRequirements.any { it < 0 }) {
                     return 100000
+                }
 
                 val desiredLights = joltageRequirements.foldRight(0) { req, acc ->
                     acc * 2 + when (req % 2 == 1) {
@@ -77,26 +72,25 @@ val Day10 = AdventOfCode(2025, 10) {
                     }
                 }
 
-
                 val allCombinations = getAllCombinations(buttons)
 
-                return@getOrPut allCombinations.filter { buttons ->
-                    val bitmasks = buttons.map { it.toBitMask() }
-                    0.pressButtons(bitmasks) == desiredLights
-                }.minOfOrNull { buttons ->
+                return@getOrPut allCombinations
+                    .filter { buttons ->
+                        val bitmasks = buttons.map { it.toBitMask() }
+                        0.pressButtons(bitmasks) == desiredLights
+                    }.minOfOrNull { buttons ->
 
-                    val counterStates = buttons.flatMap { it }.groupBy { it }.mapValues { it.value.count() }
+                        val counterStates = buttons.flatMap { it }.groupBy { it }.mapValues { it.value.count() }
 
-                    val remainingJolatages =
-                        joltageRequirements.mapIndexed { index, value -> (value - (counterStates[index] ?: 0)) / 2 }
+                        val remainingJolatages =
+                            joltageRequirements.mapIndexed { index, value -> (value - (counterStates[index] ?: 0)) / 2 }
 
-                    buttons.size + 2 * minPresses(remainingJolatages)
-                } ?: 100000
+                        buttons.size + 2 * minPresses(remainingJolatages)
+                    } ?: 100000
             }
 
             return minPresses(joltageRequirements)
         }
-
 
         input.lines
             .sumOf { line ->
@@ -106,4 +100,3 @@ val Day10 = AdventOfCode(2025, 10) {
 
     solutions(532, 18387)
 }
-

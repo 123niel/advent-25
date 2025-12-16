@@ -36,7 +36,7 @@ fun Pair<Vec, Vec>.area() = ((second.x - first.x).absoluteValue + 1).toLong() * 
 
 fun Pair<Vec, Vec>.sort() = Vec(min(first.x, second.x), min(first.y, second.y)) to Vec(
     max(first.x, second.x),
-    max(first.y, second.y)
+    max(first.y, second.y),
 )
 
 fun <T> List<T>.allPairs() = buildList {
