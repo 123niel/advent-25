@@ -1,6 +1,9 @@
 package y2025
 
 import core.AdventOfCode
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 val Day10 = AdventOfCode(2025, 10) {
 
@@ -25,7 +28,9 @@ val Day10 = AdventOfCode(2025, 10) {
         return Machine(indicators, buttons, joltage)
     }
 
-    fun List<Int>.toBitMask(): Int = sumOf { 1 shl it }
+    val bitMaskCache = mutableMapOf<List<Int>, Int>()
+
+    fun List<Int>.toBitMask(): Int = bitMaskCache.getOrPut(this) { sumOf { 1 shl it } }
 
     part1 {
 
@@ -51,15 +56,18 @@ val Day10 = AdventOfCode(2025, 10) {
         fun Int.pressButtons(buttons: List<Int>): Int = buttons.fold(this) { acc, button -> acc xor button }
 
         fun <T> getAllCombinations(buttons: List<T>) = buttons.fold(listOf(emptyList<T>())) { combinations, button ->
-            combinations.flatMap { previousPresses ->
-                listOf(previousPresses, previousPresses.plusElement(button))
+            buildList {
+                combinations.forEach { previousPresses ->
+                    add(previousPresses)
+                    add(previousPresses.plusElement(button))
+                }
             }
         }
 
-        fun Machine.minPresses(): Int {
+        suspend fun Machine.minPresses(): Int {
             val cache = mutableMapOf<List<Int>, Int>()
 
-            fun minPresses(joltageRequirements: List<Int>): Int = cache.getOrPut(joltageRequirements) {
+            suspend fun minPresses(joltageRequirements: List<Int>): Int = cache.getOrPut(joltageRequirements) {
                 if (joltageRequirements.all { it == 0 }) return 0
                 if (joltageRequirements.any { it < 0 }) {
                     return 100000
@@ -74,19 +82,25 @@ val Day10 = AdventOfCode(2025, 10) {
 
                 val allCombinations = getAllCombinations(buttons)
 
-                return@getOrPut allCombinations
-                    .filter { buttons ->
-                        val bitmasks = buttons.map { it.toBitMask() }
-                        0.pressButtons(bitmasks) == desiredLights
-                    }.minOfOrNull { buttons ->
+                return@getOrPut coroutineScope {
+                    allCombinations
+                        .filter { buttons ->
+                            val bitmasks = buttons.map { it.toBitMask() }
+                            0.pressButtons(bitmasks) == desiredLights
+                        }.map { buttons ->
+                            async {
+                                val counterStates = buttons.flatMap { it }.groupBy { it }.mapValues { it.value.count() }
 
-                        val counterStates = buttons.flatMap { it }.groupBy { it }.mapValues { it.value.count() }
+                                val remainingJolatages =
+                                    joltageRequirements.mapIndexed { index, value ->
+                                        (value - (counterStates[index] ?: 0)) / 2
+                                    }
 
-                        val remainingJolatages =
-                            joltageRequirements.mapIndexed { index, value -> (value - (counterStates[index] ?: 0)) / 2 }
-
-                        buttons.size + 2 * minPresses(remainingJolatages)
-                    } ?: 100000
+                                buttons.size + 2 * minPresses(remainingJolatages)
+                            }
+                        }.awaitAll()
+                        .minOfOrNull { it } ?: 100000
+                }
             }
 
             return minPresses(joltageRequirements)
